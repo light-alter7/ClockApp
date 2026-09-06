@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  ANDROID_PLATFORM: 'android-34'
-  ANDROID_BUILD_TOOLS: '34.0.0'
-  GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4096m'
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,7 +14,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Set up Java 17 (for Gradle build)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -29,12 +24,26 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Ensure sdkmanager is on PATH
-        # persist path additions for following steps
-        run: |
-          if [ -d "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin" ]; then
-            echo "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          fi
+      - name: Install JDK 8 (for sdkmanager only)
+        run: sudo apt-get update -y && sudo apt-get install -y openjdk-8-jdk-headless
+
+      - name: Accept SDK licenses
+        run: yes | JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 sdkmanager --licenses || true
+
+      - name: Install Android SDK packages
+        run: JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClockApp-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk          fi
           if [ -d "${ANDROID_SDK_ROOT}/tools/bin" ]; then
             echo "${ANDROID_SDK_ROOT}/tools/bin" >> $GITHUB_PATH
           fi
