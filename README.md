@@ -27,3 +27,13 @@ To build a debug APK from a machine with Gradle installed:
     gradle assembleDebug
 
 The generated APK is placed under app/build/outputs/apk/debug/.
+
+## Download an APK from GitHub Actions
+
+The ready-to-use workflow is stored at docs/android-build.yml. Once it is moved to .github/workflows/android-build.yml, every push to main and every pull request will build the debug APK.
+
+Open a completed workflow run in GitHub and download the artifact named ClockApp-debug-apk.
+
+## License
+
+ClockApp is licensed under the GNU Affero General Public License, version 3. See LICENSE for the full text.
