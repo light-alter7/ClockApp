@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 17 (for Gradle build)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -27,14 +27,63 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install JDK 8 (for sdkmanager only)
-        run: sudo apt-get update -y && sudo apt-get install -y openjdk-8-jdk-headless
-
-      - name: Add Android SDK tools to PATH
+      - name: Install JDK 8 (for sdkmanager)
         run: |
-          if [ -d "${ANDROID_SDK_ROOT}/tools/bin" ]; then
-            echo "${ANDROID_SDK_ROOT}/tools/bin" >> $GITHUB_PATH
+          sudo apt-get update -y
+          sudo apt-get install -y openjdk-8-jdk-headless
+          echo "JAVA_HOME_8=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
+          # also add likely sdkmanager locations to PATH so later steps can find it if present
+          echo "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/tools/bin:${ANDROID_SDK_ROOT}/platform-tools:$PATH" >> $GITHUB_PATH
+
+      - name: Install required SDK packages (robust sdkmanager lookup)
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+          # find sdkmanager in common locations
+          if command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          elif [ -f "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          elif [ -f "${ANDROID_SDK_ROOT}/tools/bin/sdkmanager" ]; then
+            SDKMANAGER="${ANDROID_SDK_ROOT}/tools/bin/sdkmanager"
+          else
+            echo "ERROR: sdkmanager not found. Listing ANDROID_SDK_ROOT contents for debugging:"
+            ls -la "${ANDROID_SDK_ROOT}" || true
+            exit 1
           fi
+          echo "Using sdkmanager at: $SDKMANAGER"
+          "$SDKMANAGER" --sdk_root="${ANDROID_SDK_ROOT}" --list || true
+          "$SDKMANAGER" --sdk_root="${ANDROID_SDK_ROOT}" "cmdline-tools;latest" "platform-tools" "platforms;${ANDROID_PLATFORM}" "build-tools;${ANDROID_BUILD_TOOLS}"
+
+      - name: Accept SDK licenses
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+          if [ -n "${SDKMANAGER:-}" ]; then
+            yes | "$SDKMANAGER" --sdk_root="${ANDROID_SDK_ROOT}" --licenses || true
+          elif [ -f "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --sdk_root="${ANDROID_SDK_ROOT}" --licenses || true
+          else
+            echo "No sdkmanager found to accept licenses"
+          fi
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon --build-cache
+
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClockApp-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: app/build/**   # broader glob to catch reports/ or other output dirs          fi
           if [ -d "${ANDROID_SDK_ROOT}/platform-tools" ]; then
             echo "${ANDROID_SDK_ROOT}/platform-tools" >> $GITHUB_PATH
           fi
