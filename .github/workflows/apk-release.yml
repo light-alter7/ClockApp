@@ -53,20 +53,3 @@ jobs:
             echo "**APK File:** app-debug.apk" >> $GITHUB_STEP_SUMMARY
             ls -lh ./apk-artifact/app-debug.apk >> $GITHUB_STEP_SUMMARY
           fi
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./apk-artifact/app-debug.apk
-          asset_name: ClockApp-debug.apk
-          asset_content_type: application/vnd.android.package-archive
-
-      - name: Generate APK summary
-        run: |
-          if [ -f ./apk-artifact/app-debug.apk ]; then
-            echo "## APK Build Summary" >> $GITHUB_STEP_SUMMARY
-            echo "**Build Status:** ✅ Success" >> $GITHUB_STEP_SUMMARY
-            echo "**APK File:** app-debug.apk" >> $GITHUB_STEP_SUMMARY
-            ls -lh ./apk-artifact/app-debug.apk >> $GITHUB_STEP_SUMMARY
-          fi
