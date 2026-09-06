@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_PLATFORM: 'android-34'
+      ANDROID_BUILD_TOOLS: '34.0.0'
 
     steps:
       - name: Check out source
@@ -27,23 +30,8 @@ jobs:
       - name: Install JDK 8 (for sdkmanager only)
         run: sudo apt-get update -y && sudo apt-get install -y openjdk-8-jdk-headless
 
-      - name: Accept SDK licenses
-        run: yes | JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 sdkmanager --licenses || true
-
-      - name: Install Android SDK packages
-        run: JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 sdkmanager "platforms;android-34" "build-tools;34.0.0"
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
-
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon
-
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ClockApp-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk          fi
+      - name: Add Android SDK tools to PATH
+        run: |
           if [ -d "${ANDROID_SDK_ROOT}/tools/bin" ]; then
             echo "${ANDROID_SDK_ROOT}/tools/bin" >> $GITHUB_PATH
           fi
@@ -53,12 +41,14 @@ jobs:
 
       - name: Install required SDK packages
         run: |
-          # Install cmdline-tools if missing, then required packages
+          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           sdkmanager --list || true
           sdkmanager "cmdline-tools;latest" "platform-tools" "platforms;${ANDROID_PLATFORM}" "build-tools;${ANDROID_BUILD_TOOLS}"
 
       - name: Accept SDK licenses
-        run: yes | sdkmanager --licenses
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+          yes | sdkmanager --licenses
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
@@ -67,27 +57,8 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon --build-cache
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
         if: success()
-        with:
-          name: ClockApp-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Upload build logs
-        if: failure()
         uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: app/build/reports/
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
-
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon --build-cache
-
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        if: success()
         with:
           name: ClockApp-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
