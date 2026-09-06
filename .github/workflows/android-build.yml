@@ -29,12 +29,47 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Ensure sdkmanager is on PATH
+        # persist path additions for following steps
+        run: |
+          if [ -d "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin" ]; then
+            echo "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          fi
+          if [ -d "${ANDROID_SDK_ROOT}/tools/bin" ]; then
+            echo "${ANDROID_SDK_ROOT}/tools/bin" >> $GITHUB_PATH
+          fi
+          if [ -d "${ANDROID_SDK_ROOT}/platform-tools" ]; then
+            echo "${ANDROID_SDK_ROOT}/platform-tools" >> $GITHUB_PATH
+          fi
+
+      - name: Install required SDK packages
+        run: |
+          # Install cmdline-tools if missing, then required packages
+          sdkmanager --list || true
+          sdkmanager "cmdline-tools;latest" "platform-tools" "platforms;${ANDROID_PLATFORM}" "build-tools;${ANDROID_BUILD_TOOLS}"
+
       - name: Accept SDK licenses
         run: yes | sdkmanager --licenses
 
-      - name: Install Android SDK packages
-        run: sdkmanager "platforms;${{ env.ANDROID_PLATFORM }}" "build-tools;${{ env.ANDROID_BUILD_TOOLS }}"
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
 
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon --build-cache
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ClockApp-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: app/build/reports/
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
