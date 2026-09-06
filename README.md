@@ -27,7 +27,3 @@ To build a debug APK from a machine with Gradle installed:
     gradle assembleDebug
 
 The generated APK is placed under app/build/outputs/apk/debug/.
-
-## Continuous integration
-
-GitHub Actions runs the debug build for pushes to main and for pull requests.
